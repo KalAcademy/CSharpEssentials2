@@ -20,30 +20,55 @@ namespace CSharpEssentials2
         internal static readonly LocalizableString MessageFormat = new LocalizableResourceString(nameof(Resources.AnalyzerMessageFormat), Resources.ResourceManager, typeof(Resources));
         internal static readonly LocalizableString Description = new LocalizableResourceString(nameof(Resources.AnalyzerDescription), Resources.ResourceManager, typeof(Resources));
         internal const string Category = "Naming";
-
-        internal static DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Warning, isEnabledByDefault: true, description: Description);
+        internal static HashSet<string> types=  new HashSet<string> ();
+        internal static DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Error, isEnabledByDefault: true, description: Description);
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(Rule); } }
 
+        static CSharpEssentials2Analyzer()
+        {
+            types.Add("bool");
+            types.Add("wchar");
+            types.Add("int8");
+            types.Add("uint8");
+            types.Add("short");
+            types.Add("ushort");
+            types.Add("int");
+            types.Add("uint");
+        }
         public override void Initialize(AnalysisContext context)
         {
-            // TODO: Consider registering other actions that act on syntax instead of or in addition to symbols
-            context.RegisterSymbolAction(AnalyzeSymbol, SymbolKind.NamedType);
+            //context.RegisterSymbolAction(AnalyzeSymbol, SymbolKind.Field); - only works for methods, fields and others
+            context.RegisterSyntaxNodeAction(AnalyzeSyntaxParameterNode, SyntaxKind.Parameter);
         }
 
-        private static void AnalyzeSymbol(SymbolAnalysisContext context)
+        private static void AnalyzeSyntaxParameterNode(SyntaxNodeAnalysisContext context)
         {
-            // TODO: Replace the following code with your own analysis, generating Diagnostic objects for any issues you find
-            var namedTypeSymbol = (INamedTypeSymbol)context.Symbol;
-
-            // Find just those named type symbols with names containing lowercase letters.
-            if (namedTypeSymbol.Name.ToCharArray().Any(char.IsLower))
+            try
             {
-                // For all such symbols, produce a diagnostic.
-                var diagnostic = Diagnostic.Create(Rule, namedTypeSymbol.Locations[0], namedTypeSymbol.Name);
-
-                context.ReportDiagnostic(diagnostic);
+                var param = (ParameterSyntax)context.Node;
+                var isTypeName = CheckForTypeName(param.Identifier.ToString());
+                if (isTypeName)
+                {
+                    var diagnostic = Diagnostic.Create(Rule, param.GetLocation(), param.Identifier.ToString());
+                    context.ReportDiagnostic(diagnostic);
+                }
             }
+            catch (Exception)
+            {
+
+            }
+        }
+
+        private static bool CheckForTypeName(string identifier)
+        {
+            if (String.IsNullOrWhiteSpace(identifier))
+                return false;
+
+            if (types.Contains(identifier.ToLowerInvariant()))
+                return true;
+
+            return false;
         }
     }
 }
