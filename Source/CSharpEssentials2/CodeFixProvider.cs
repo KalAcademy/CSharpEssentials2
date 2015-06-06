@@ -48,7 +48,7 @@ namespace CSharpEssentials2
         {
             // Compute new name.
             var identifierToken = paramToken.Identifier.Text;
-            var newName = "value";
+            var newName = identifierToken.ToLowerInvariant() + "Value";
 
             // Get the symbol representing the type to be renamed.
             var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
