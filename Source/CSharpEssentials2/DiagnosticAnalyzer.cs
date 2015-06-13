@@ -84,6 +84,32 @@ namespace CSharpEssentials2
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(AnalyzeSyntaxParameterNode, SyntaxKind.Parameter);
+            context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.ClassDeclaration);
+            context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.StructDeclaration);
+            context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.EnumDeclaration);
+        }
+
+        private static void AnalyzeSyntaxNode(SyntaxNodeAnalysisContext context)
+        {
+            //Have one issue - how to remove when the member name is renamed?
+            BaseTypeDeclarationSyntax node = null;
+            if (context.Node is ClassDeclarationSyntax)
+            {
+                node = (ClassDeclarationSyntax)context.Node;
+            }
+            else if (context.Node is StructDeclarationSyntax)
+            {
+                node = (StructDeclarationSyntax)context.Node;
+            }
+            else if (context.Node is EnumDeclarationSyntax)
+            {
+                node = (EnumDeclarationSyntax)context.Node;
+            }
+
+            if (node != null)
+            {
+                types.Add(node.Identifier.Text.ToLowerInvariant());
+            }
         }
 
         private static void AnalyzeSyntaxParameterNode(SyntaxNodeAnalysisContext context)
