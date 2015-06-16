@@ -48,20 +48,20 @@ namespace CSharpEssentials2
         {
 
             //var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
-            //var semanticModel = await document.GetSemanticModelAsync();
-            //var typeSymbol = semanticModel.GetDeclaredSymbol(paramToken, cancellationToken);
-            //RenameAnnotation.Kind = 
-            //var newSymbol = SyntaxFactory.Parameter(paramToken.Identifier).WithAdditionalAnnotations(RenameAnnotation.Create();
-            //var newRoot = root.ReplaceNode(paramToken, newSymbol);
-            //return document.WithSyntaxRoot(newRoot);
+            //  //var semanticModel = await document.GetSemanticModelAsync();
+            //  //var typeSymbol = semanticModel.GetDeclaredSymbol(paramToken, cancellationToken);
+            //  //RenameAnnotation.Kind = 
+            //  //var newSymbol = SyntaxFactory.Parameter(paramToken.Identifier).WithAdditionalAnnotations(RenameAnnotation.Create();
+            //  //var newRoot = root.ReplaceNode(paramToken, newSymbol);
+            //  //return document.WithSyntaxRoot(newRoot);
 
-            //var finalRoot = root.ReplaceToken(
-            //                        paramToken.Identifier,
-            //                         paramToken.Identifier.WithAdditionalAnnotations(RenameAnnotation.Create()));
+            //  var finalRoot = root.ReplaceToken(
+            //                          paramToken.Identifier,
+            //                           paramToken.Identifier.WithAdditionalAnnotations(RenameAnnotation.Create()));
 
-            //return document.WithSyntaxRoot(finalRoot);
+            //  return document.WithSyntaxRoot(finalRoot);
 
-            // Compute new name.
+            // Compute new name.    
             var identifierToken = paramToken.Identifier.Text;
             var newName = identifierToken.ToLowerInvariant() + "Value";
 

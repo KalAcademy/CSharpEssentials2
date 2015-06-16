@@ -32,7 +32,9 @@ namespace CSharpEssentials2
         internal static readonly LocalizableString MessageFormat = new LocalizableResourceString(nameof(Resources.AnalyzerMessageFormat), Resources.ResourceManager, typeof(Resources));
         internal static readonly LocalizableString Description = new LocalizableResourceString(nameof(Resources.AnalyzerDescription), Resources.ResourceManager, typeof(Resources));
         internal const string Category = "Naming";
+        internal static bool cleanupUserDefinedTypes = true;
         internal static HashSet<string> types=  new HashSet<string> ();
+        internal static HashSet<string> userDefinedTypes = new HashSet<string>();
         internal static DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Error, isEnabledByDefault: true, description: Description);
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(Rule); } }
@@ -83,15 +85,20 @@ namespace CSharpEssentials2
         }
         public override void Initialize(AnalysisContext context)
         {
-            context.RegisterSyntaxNodeAction(AnalyzeSyntaxParameterNode, SyntaxKind.Parameter);
             context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.ClassDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.StructDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.EnumDeclaration);
+            context.RegisterSyntaxNodeAction(AnalyzeSyntaxParameterNode, SyntaxKind.Parameter);
         }
 
         private static void AnalyzeSyntaxNode(SyntaxNodeAnalysisContext context)
         {
-            //Have one issue - how to remove when the member name is renamed?
+            if (cleanupUserDefinedTypes)
+            {
+                userDefinedTypes.Clear();
+                cleanupUserDefinedTypes = false;
+            }
+
             BaseTypeDeclarationSyntax node = null;
             if (context.Node is ClassDeclarationSyntax)
             {
@@ -108,14 +115,23 @@ namespace CSharpEssentials2
 
             if (node != null)
             {
-                types.Add(node.Identifier.Text.ToLowerInvariant());
+                userDefinedTypes.Add(node.Identifier.Text.ToLowerInvariant());
             }
         }
 
         private static void AnalyzeSyntaxParameterNode(SyntaxNodeAnalysisContext context)
         {
+            //Based on the order of event registration parameter check happens after all member checks
+            // hence cleanup of userdefined types needs to happen when this event occurs
+            cleanupUserDefinedTypes = true;
+
             var param = (ParameterSyntax)context.Node;
-            var isTypeName = isType(param.Identifier.ToString());
+            var identifier = param.Identifier.ToString();
+            if (String.IsNullOrWhiteSpace(identifier))
+                return;
+
+            identifier = identifier.ToLowerInvariant();
+            var isTypeName = isType(identifier);
             if (isTypeName)
             {
                 var diagnostic = Diagnostic.Create(Rule, param.GetLocation(), param.Identifier.ToString());
@@ -125,10 +141,7 @@ namespace CSharpEssentials2
 
         private static bool isType(string identifier)
         {
-            if (String.IsNullOrWhiteSpace(identifier))
-                return false;
-
-            if (types.Contains(identifier.ToLowerInvariant()))
+            if (types.Contains(identifier) || userDefinedTypes.Contains(identifier))
                 return true;
 
             return false;
