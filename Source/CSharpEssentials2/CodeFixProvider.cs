@@ -46,7 +46,22 @@ namespace CSharpEssentials2
 
         private async Task<Solution> RemoveTypeName(Document document, ParameterSyntax paramToken, CancellationToken cancellationToken)
         {
-            // Compute new name.
+
+            //var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+            //  //var semanticModel = await document.GetSemanticModelAsync();
+            //  //var typeSymbol = semanticModel.GetDeclaredSymbol(paramToken, cancellationToken);
+            //  //RenameAnnotation.Kind = 
+            //  //var newSymbol = SyntaxFactory.Parameter(paramToken.Identifier).WithAdditionalAnnotations(RenameAnnotation.Create();
+            //  //var newRoot = root.ReplaceNode(paramToken, newSymbol);
+            //  //return document.WithSyntaxRoot(newRoot);
+
+            //  var finalRoot = root.ReplaceToken(
+            //                          paramToken.Identifier,
+            //                           paramToken.Identifier.WithAdditionalAnnotations(RenameAnnotation.Create()));
+
+            //  return document.WithSyntaxRoot(finalRoot);
+
+            // Compute new name.    
             var identifierToken = paramToken.Identifier.Text;
             var newName = identifierToken.ToLowerInvariant() + "Value";
 
