@@ -35,16 +35,29 @@ namespace CSharpEssentials2
             var diagnostic = context.Diagnostics.First();
             var diagnosticSpan = diagnostic.Location.SourceSpan;
 
-            // Find the type declaration identified by the diagnostic.
-            var paramToken = root.FindToken(diagnosticSpan.Start).Parent.AncestorsAndSelf().OfType<ParameterSyntax>().First();
+            if (diagnostic.Descriptor.Category == "Parameter")
+            {
+                // Find the type declaration identified by the diagnostic.
+                var paramToken = root.FindToken(diagnosticSpan.Start).Parent.AncestorsAndSelf().OfType<ParameterSyntax>().First();
 
-            // Register a code action that will invoke the fix.
-            context.RegisterCodeFix(
-                CodeAction.Create("Remove type name", c => RemoveTypeName(context.Document, paramToken, c)),
-                diagnostic);
+                // Register a code action that will invoke the fix.
+                context.RegisterCodeFix(
+                    CodeAction.Create("Remove type name", c => RemoveTypeNameFromParameter(context.Document, paramToken, c)),
+                    diagnostic);
+            }
+            else
+            {
+                // Find the type declaration identified by the diagnostic.
+                var nodeToken = root.FindToken(diagnosticSpan.Start).Parent.AncestorsAndSelf().OfType<BaseTypeDeclarationSyntax>().First();
+
+                // Register a code action that will invoke the fix.
+                context.RegisterCodeFix(
+                    CodeAction.Create("Remove type name", c => RemoveTypeNameFromMember(context.Document, nodeToken, c)),
+                    diagnostic);
+            }
         }
 
-        private async Task<Solution> RemoveTypeName(Document document, ParameterSyntax paramToken, CancellationToken cancellationToken)
+        private async Task<Solution> RemoveTypeNameFromParameter(Document document, ParameterSyntax paramToken, CancellationToken cancellationToken)
         {
 
             //var root = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
@@ -77,5 +90,25 @@ namespace CSharpEssentials2
             // Return the new solution with the now-uppercase type name.
             return newSolution;
         }
+
+        private async Task<Solution> RemoveTypeNameFromMember(Document document, BaseTypeDeclarationSyntax nodeToken, CancellationToken cancellationToken)
+        {
+            // Compute new name.    
+            var identifierToken = nodeToken.Identifier.Text;
+            var newName = identifierToken.ToLowerInvariant() + "Value";
+
+            // Get the symbol representing the type to be renamed.
+            var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
+            var typeSymbol = semanticModel.GetDeclaredSymbol(nodeToken, cancellationToken);
+
+            // Produce a new solution that has all references to that type renamed, including the declaration.
+            var originalSolution = document.Project.Solution;
+            var optionSet = originalSolution.Workspace.Options;
+            var newSolution = await Renamer.RenameSymbolAsync(document.Project.Solution, typeSymbol, newName, optionSet, cancellationToken).ConfigureAwait(false);
+
+            // Return the new solution with the now-uppercase type name.
+            return newSolution;
+        }
+
     }
 }

@@ -28,14 +28,15 @@ namespace CSharpEssentials2
     {
         public const string DiagnosticId = "CA1720";
 
-        internal static readonly LocalizableString Title = new LocalizableResourceString(nameof(Resources.AnalyzerTitle), Resources.ResourceManager, typeof(Resources));
-        internal static readonly LocalizableString MessageFormat = new LocalizableResourceString(nameof(Resources.AnalyzerMessageFormat), Resources.ResourceManager, typeof(Resources));
-        internal static readonly LocalizableString Description = new LocalizableResourceString(nameof(Resources.AnalyzerDescription), Resources.ResourceManager, typeof(Resources));
+        internal const string Title = "name contains type name";
+        internal const string MessageFormat = "contains type name";
         internal const string Category = "Naming";
         internal static bool cleanupUserDefinedTypes = true;
         internal static HashSet<string> types=  new HashSet<string> ();
         internal static HashSet<string> userDefinedTypes = new HashSet<string>();
-        internal static DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Error, isEnabledByDefault: true, description: Description);
+        internal static DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
+        internal const string Member = "Member";
+        internal const string Parameter = "Parameter";
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(Rule); } }
 
@@ -115,7 +116,19 @@ namespace CSharpEssentials2
 
             if (node != null)
             {
-                userDefinedTypes.Add(node.Identifier.Text.ToLowerInvariant());
+                //check if memeber contains type name
+                var identifier = node.Identifier.Text.ToLowerInvariant();
+                var isTypeName = isType(identifier);
+                if (isTypeName)
+                {
+                    var rule = new DiagnosticDescriptor(DiagnosticId, $"{Member} {Title}", $"{Member} '{{0}}' {MessageFormat}", Member, DiagnosticSeverity.Error, isEnabledByDefault: true);
+                    var diagnostic = Diagnostic.Create(rule, node.GetLocation(), node.Identifier.ToString());
+                    context.ReportDiagnostic(diagnostic);
+                }
+                else
+                {
+                    userDefinedTypes.Add(identifier);
+                }
             }
         }
 
@@ -124,8 +137,8 @@ namespace CSharpEssentials2
             //Based on the order of event registration parameter check happens after all member checks
             // hence cleanup of userdefined types needs to happen when this event occurs
             cleanupUserDefinedTypes = true;
-
             var param = (ParameterSyntax)context.Node;
+
             var identifier = param.Identifier.ToString();
             if (String.IsNullOrWhiteSpace(identifier))
                 return;
@@ -134,7 +147,8 @@ namespace CSharpEssentials2
             var isTypeName = isType(identifier);
             if (isTypeName)
             {
-                var diagnostic = Diagnostic.Create(Rule, param.GetLocation(), param.Identifier.ToString());
+                var rule = new DiagnosticDescriptor(DiagnosticId, $"{Parameter} {Title}", $"{Parameter} '{{0}}' {MessageFormat}", Parameter, DiagnosticSeverity.Error, isEnabledByDefault: true);
+                var diagnostic = Diagnostic.Create(rule, param.GetLocation(), param.Identifier.ToString());
                 context.ReportDiagnostic(diagnostic);
             }
         }
