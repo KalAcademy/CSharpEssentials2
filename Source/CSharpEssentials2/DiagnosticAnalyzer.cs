@@ -35,11 +35,16 @@ namespace CSharpEssentials2
         internal static HashSet<string> types=  new HashSet<string> ();
         internal static HashSet<string> userDefinedTypes = new HashSet<string>();
         internal static DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
+        internal const string Method = "Method";
+        internal const string Property = "Property";
         internal const string Member = "Member";
         internal const string Parameter = "Parameter";
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get { return ImmutableArray.Create(Rule); } }
 
+        /// <summary>
+        /// Initializes primitive types
+        /// </summary>
         static CSharpEssentials2Analyzer()
         {
             types.Add("bool");
@@ -84,21 +89,40 @@ namespace CSharpEssentials2
             types.Add("obj");
             types.Add("string");
         }
+
+        /// <summary>
+        /// Register to listen to members and parameter declarations
+        /// </summary>
+        /// <param name="context"></param>
         public override void Initialize(AnalysisContext context)
         {
             context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.ClassDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.StructDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeSyntaxNode, SyntaxKind.EnumDeclaration);
+            context.RegisterSyntaxNodeAction(AnalyzeMethodSyntaxNode, SyntaxKind.MethodDeclaration);
+            context.RegisterSyntaxNodeAction(AnalyzePropertySyntaxNode, SyntaxKind.PropertyDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeSyntaxParameterNode, SyntaxKind.Parameter);
         }
 
+        /// <summary>
+        /// Retrieve the name of the class/struct/enum and store it in
+        /// a userdefinedtypes hashset to ensure no member or parameter uses that userdefined typename
+        /// Also verify that these members are not violating the CA1720 rule
+        /// </summary>
+        /// <param name="context"></param>
         private static void AnalyzeSyntaxNode(SyntaxNodeAnalysisContext context)
         {
+            //if the flag is set, clean the userdefinedtype hashset and let this method 
+            //refill it as the analyzer calls the delegated in the order of registration
+            //defined in the initialize method.
             if (cleanupUserDefinedTypes)
             {
                 userDefinedTypes.Clear();
                 cleanupUserDefinedTypes = false;
             }
+
+            Location nodeLocation = null;
+            SyntaxToken identifier = new SyntaxToken();
 
             BaseTypeDeclarationSyntax node = null;
             if (context.Node is ClassDeclarationSyntax)
@@ -116,22 +140,84 @@ namespace CSharpEssentials2
 
             if (node != null)
             {
+                nodeLocation = node.GetLocation();
+                identifier = node.Identifier;
+            }
+
+            if (nodeLocation != null)
+            {
                 //check if memeber contains type name
-                var identifier = node.Identifier.Text.ToLowerInvariant();
-                var isTypeName = isType(identifier);
+                var nodeText = identifier.Text.ToLowerInvariant();
+                var isTypeName = isType(nodeText);
                 if (isTypeName)
                 {
                     var rule = new DiagnosticDescriptor(DiagnosticId, $"{Member} {Title}", $"{Member} '{{0}}' {MessageFormat}", Member, DiagnosticSeverity.Error, isEnabledByDefault: true);
-                    var diagnostic = Diagnostic.Create(rule, node.GetLocation(), node.Identifier.ToString());
+                    var diagnostic = Diagnostic.Create(rule, nodeLocation, identifier.ToString());
                     context.ReportDiagnostic(diagnostic);
                 }
                 else
                 {
-                    userDefinedTypes.Add(identifier);
+                    userDefinedTypes.Add(nodeText);
                 }
             }
         }
 
+        /// <summary>
+        /// This method only verifies method names to be type names
+        /// </summary>
+        /// <param name="context"></param>
+        private static void AnalyzeMethodSyntaxNode(SyntaxNodeAnalysisContext context)
+        {
+            SyntaxToken identifier = new SyntaxToken();
+            if (context.Node is MethodDeclarationSyntax)
+            {
+                var methodNode = (MethodDeclarationSyntax)context.Node;
+                if (methodNode == null)
+                    return;
+
+                identifier = methodNode.Identifier;
+                //check if memeber contains type name
+                var nodeText = identifier.Text.ToLowerInvariant();
+                var isTypeName = isType(nodeText);
+                if (isTypeName)
+                {
+                    var rule = new DiagnosticDescriptor(DiagnosticId, $"{Member} {Title}", $"{Member} '{{0}}' {MessageFormat}", Method, DiagnosticSeverity.Error, isEnabledByDefault: true);
+                    var diagnostic = Diagnostic.Create(rule, methodNode.GetLocation(), identifier.ToString());
+                    context.ReportDiagnostic(diagnostic);
+                }
+            }
+        }
+
+        /// <summary>
+        /// This method verifies property names to be type names
+        /// </summary>
+        /// <param name="context"></param>
+        private static void AnalyzePropertySyntaxNode(SyntaxNodeAnalysisContext context)
+        {
+            SyntaxToken identifier = new SyntaxToken();
+            if (context.Node is PropertyDeclarationSyntax)
+            {
+                var propertyNode = (PropertyDeclarationSyntax)context.Node;
+                if (propertyNode == null)
+                    return;
+
+                identifier = propertyNode.Identifier;
+                //check if memeber contains type name
+                var nodeText = identifier.Text.ToLowerInvariant();
+                var isTypeName = isType(nodeText);
+                if (isTypeName)
+                {
+                    var rule = new DiagnosticDescriptor(DiagnosticId, $"{Member} {Title}", $"{Member} '{{0}}' {MessageFormat}", Property, DiagnosticSeverity.Error, isEnabledByDefault: true);
+                    var diagnostic = Diagnostic.Create(rule, propertyNode.GetLocation(), identifier.ToString());
+                    context.ReportDiagnostic(diagnostic);
+                }
+            }
+        }
+
+        /// <summary>
+        /// This method checks for parameters being type names
+        /// </summary>
+        /// <param name="context"></param>
         private static void AnalyzeSyntaxParameterNode(SyntaxNodeAnalysisContext context)
         {
             //Based on the order of event registration parameter check happens after all member checks
