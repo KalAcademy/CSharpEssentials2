@@ -11,17 +11,14 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace CSharpEssentials2
 {
     /// <summary>
-    /// CA1720: Identifiers should not contain type names
+    /// CA1720-redefined: Identifiers should not contain type names
     /// Cause:
-    /// The name of a parameter in an externally visible member contains a data type name.
-    /// -or-
-    /// The name of an externally visible member contains a language-specific data type name.
+    /// The name of a parameter or a member contains a language-specific data type name.
     /// 
     /// Description:
     /// Names of parameters and members are better used to communicate their meaning than 
     /// to describe their type, which is expected to be provided by development tools. For names of members, 
     /// if a data type name must be used, use a language-independent name instead of a language-specific one. 
-    /// For example, instead of the C# type name 'int', use the language-independent data type name, Int32.
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public class CSharpEssentials2Analyzer : DiagnosticAnalyzer
@@ -31,9 +28,7 @@ namespace CSharpEssentials2
         internal const string Title = "name contains type name";
         internal const string MessageFormat = "contains type name";
         internal const string Category = "Naming";
-        internal static bool cleanupUserDefinedTypes = true;
         internal static HashSet<string> types=  new HashSet<string> ();
-        internal static HashSet<string> userDefinedTypes = new HashSet<string>();
         internal static DiagnosticDescriptor Rule = new DiagnosticDescriptor(DiagnosticId, Title, MessageFormat, Category, DiagnosticSeverity.Error, isEnabledByDefault: true);
         internal const string Method = "Method";
         internal const string Property = "Property";
@@ -112,15 +107,6 @@ namespace CSharpEssentials2
         /// <param name="context"></param>
         private static void AnalyzeSyntaxNode(SyntaxNodeAnalysisContext context)
         {
-            //if the flag is set, clean the userdefinedtype hashset and let this method 
-            //refill it as the analyzer calls the delegated in the order of registration
-            //defined in the initialize method.
-            if (cleanupUserDefinedTypes)
-            {
-                userDefinedTypes.Clear();
-                cleanupUserDefinedTypes = false;
-            }
-
             Location nodeLocation = null;
             SyntaxToken identifier = new SyntaxToken();
 
@@ -138,27 +124,19 @@ namespace CSharpEssentials2
                 node = (EnumDeclarationSyntax)context.Node;
             }
 
-            if (node != null)
-            {
-                nodeLocation = node.GetLocation();
-                identifier = node.Identifier;
-            }
+            if (node == null)
+                return;
 
-            if (nodeLocation != null)
+            nodeLocation = node.GetLocation();
+            identifier = node.Identifier;
+            //check if memeber contains type name
+            var nodeText = identifier.Text.ToLowerInvariant();
+            var isTypeName = isType(nodeText);
+            if (isTypeName)
             {
-                //check if memeber contains type name
-                var nodeText = identifier.Text.ToLowerInvariant();
-                var isTypeName = isType(nodeText);
-                if (isTypeName)
-                {
-                    var rule = new DiagnosticDescriptor(DiagnosticId, $"{Member} {Title}", $"{Member} '{{0}}' {MessageFormat}", Member, DiagnosticSeverity.Error, isEnabledByDefault: true);
-                    var diagnostic = Diagnostic.Create(rule, nodeLocation, identifier.ToString());
-                    context.ReportDiagnostic(diagnostic);
-                }
-                else
-                {
-                    userDefinedTypes.Add(nodeText);
-                }
+                var rule = new DiagnosticDescriptor(DiagnosticId, $"{Member} {Title}", $"{Member} '{{0}}' {MessageFormat}", Member, DiagnosticSeverity.Error, isEnabledByDefault: true);
+                var diagnostic = Diagnostic.Create(rule, nodeLocation, identifier.ToString());
+                context.ReportDiagnostic(diagnostic);
             }
         }
 
@@ -220,9 +198,6 @@ namespace CSharpEssentials2
         /// <param name="context"></param>
         private static void AnalyzeSyntaxParameterNode(SyntaxNodeAnalysisContext context)
         {
-            //Based on the order of event registration parameter check happens after all member checks
-            // hence cleanup of userdefined types needs to happen when this event occurs
-            cleanupUserDefinedTypes = true;
             var param = (ParameterSyntax)context.Node;
 
             var identifier = param.Identifier.ToString();
@@ -241,7 +216,7 @@ namespace CSharpEssentials2
 
         private static bool isType(string identifier)
         {
-            if (types.Contains(identifier) || userDefinedTypes.Contains(identifier))
+            if (types.Contains(identifier) )
                 return true;
 
             return false;
